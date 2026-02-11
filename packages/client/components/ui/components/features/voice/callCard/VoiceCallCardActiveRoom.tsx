@@ -165,9 +165,14 @@ function UserTile() {
   const participant = useEnsureParticipant();
   const track = useMaybeTrackRefContext();
 
-  const isMuted = useIsMuted({
+  const isMicrophoneMuted = useIsMuted({
     participant,
     source: Track.Source.Microphone,
+  });
+
+  const isCameraMuted = useIsMuted({
+    participant,
+    source: Track.Source.Camera,
   });
 
   const isSpeaking = useIsSpeaking(participant);
@@ -201,7 +206,7 @@ function UserTile() {
           </AvatarOnly>
         }
       >
-        <Match when={isTrackReference(track)}>
+        <Match when={isTrackReference(track) && !isCameraMuted()}>
           <VideoTrack
             style={{ "grid-area": "1/1" }}
             trackRef={track as TrackReference}
@@ -215,7 +220,7 @@ function UserTile() {
           <OverflowingText>{user().username}</OverflowingText>
           <VoiceStatefulUserIcons
             userId={participant.identity}
-            muted={isMuted()}
+            muted={isMicrophoneMuted()}
           />
         </OverlayInner>
       </Overlay>
