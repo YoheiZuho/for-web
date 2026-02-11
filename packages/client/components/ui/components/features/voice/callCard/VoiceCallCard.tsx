@@ -278,14 +278,74 @@ function VoiceCallCard(props: { channel: Channel }) {
   const voice = useVoice();
   const inCall = () => voice.channel()?.id === props.channel.id;
 
+  const MIN_CARD_HEIGHT = 360;
+  const MAX_CARD_HEIGHT = 960;
+  const DEFAULT_CARD_HEIGHT = 480;
+
+  const [cardHeight, setCardHeight] = createSignal(DEFAULT_CARD_HEIGHT);
+  const [isResizing, setIsResizing] = createSignal(false);
+
+  let resizeStartY = 0;
+  let resizeStartHeight = DEFAULT_CARD_HEIGHT;
+
+  const clampHeight = (value: number) =>
+    Math.min(Math.max(value, MIN_CARD_HEIGHT), MAX_CARD_HEIGHT);
+
+  const handlePointerMove = (event: PointerEvent) => {
+    event.preventDefault();
+    const delta = event.clientY - resizeStartY;
+    setCardHeight(clampHeight(resizeStartHeight + delta));
+  };
+
+  const stopResizing = () => {
+    if (!isResizing()) return;
+    setIsResizing(false);
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", stopResizing);
+  };
+
+  const startResizing = (event: PointerEvent) => {
+    event.preventDefault();
+    resizeStartY = event.clientY;
+    resizeStartHeight = cardHeight();
+    setIsResizing(true);
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResizing);
+  };
+
+  onCleanup(() => {
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", stopResizing);
+  });
+
   return (
     <Base>
-      <Card active={inCall()}>
+      <Card
+        active={inCall()}
+        style={
+          inCall()
+            ? {
+                height: `${cardHeight()}px`,
+              }
+            : undefined
+        }
+      >
         <Show
           when={inCall()}
           fallback={<VoiceCallCardPreview channel={props.channel} />}
         >
           <VoiceCallCardActiveRoom />
+          <CardResizeHandle
+            role="separator"
+            aria-label="Resize call area"
+            aria-orientation="horizontal"
+            aria-valuemin={MIN_CARD_HEIGHT}
+            aria-valuemax={MAX_CARD_HEIGHT}
+            aria-valuenow={Math.round(cardHeight())}
+            data-active={isResizing() ? "" : undefined}
+            onPointerDown={startResizing}
+          />
         </Show>
       </Card>
     </Base>
@@ -325,7 +385,6 @@ const Card = styled("div", {
     active: {
       true: {
         width: "100%",
-        height: "40vh",
       },
       false: {
         width: "360px",
@@ -336,5 +395,40 @@ const Card = styled("div", {
   },
   defaultVariants: {
     active: false,
+  },
+});
+
+const CardResizeHandle = styled("div", {
+  base: {
+    width: "100%",
+    height: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "row-resize",
+    userSelect: "none",
+    touchAction: "none",
+    color: "var(--md-sys-color-outline)",
+
+    _before: {
+      content: "\"\"",
+      width: "72px",
+      height: "4px",
+      borderRadius: "999px",
+      background: "currentcolor",
+      opacity: 0.6,
+      transition: "opacity var(--transitions-fast)",
+    },
+
+    _hover: {
+      color: "var(--md-sys-color-primary)",
+    },
+
+    "&[data-active]": {
+      color: "var(--md-sys-color-primary)",
+      _before: {
+        opacity: 1,
+      },
+    },
   },
 });
