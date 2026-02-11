@@ -1,4 +1,12 @@
-import { Match, Show, Switch } from "solid-js";
+import {
+  Accessor,
+  Match,
+  Show,
+  Switch,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import {
   TrackLoop,
   TrackReference,
@@ -72,6 +80,9 @@ const Call = styled("div", {
  * Show a grid of participants
  */
 function Participants() {
+  const [pinnedParticipant, setPinnedParticipant] = createSignal<string | null>(
+    null,
+  );
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -80,9 +91,22 @@ function Participants() {
     { onlySubscribed: false },
   );
 
+  const togglePinnedParticipant = (participantId: string) => {
+    setPinnedParticipant((current) =>
+      current === participantId ? null : participantId,
+    );
+  };
+
   return (
     <Grid>
-      <TrackLoop tracks={tracks}>{() => <ParticipantTile />}</TrackLoop>
+      <TrackLoop tracks={tracks}>
+        {() => (
+          <ParticipantTile
+            pinnedParticipant={pinnedParticipant}
+            onTogglePin={togglePinnedParticipant}
+          />
+        )}
+      </TrackLoop>
       {/* <div class={tile()} />
       <div class={tile()} />
       <div class={tile()} />
@@ -101,16 +125,24 @@ const Grid = styled("div", {
   },
 });
 
+type ParticipantTileProps = {
+  pinnedParticipant: Accessor<string | null>;
+  onTogglePin: (participantId: string) => void;
+};
+
 /**
  * Individual participant tile
  */
-function ParticipantTile() {
+function ParticipantTile(props: ParticipantTileProps) {
   const track = useTrackRefContext();
 
   return (
     <Switch fallback={<UserTile />}>
       <Match when={track.source === Track.Source.ScreenShare}>
-        <ScreenshareTile />
+        <ScreenshareTile
+          pinnedParticipant={props.pinnedParticipant}
+          onTogglePin={props.onTogglePin}
+        />
       </Match>
     </Switch>
   );
@@ -189,10 +221,15 @@ const AvatarOnly = styled("div", {
   },
 });
 
+type ScreenshareTileProps = {
+  pinnedParticipant: Accessor<string | null>;
+  onTogglePin: (participantId: string) => void;
+};
+
 /**
  * Shown when the track source is a screenshare
  */
-function ScreenshareTile() {
+function ScreenshareTile(props: ScreenshareTileProps) {
   const participant = useEnsureParticipant();
   const track = useMaybeTrackRefContext();
   const user = useUser(participant.identity);
@@ -202,8 +239,58 @@ function ScreenshareTile() {
     source: Track.Source.ScreenShareAudio,
   });
 
+  const isPinned = () => props.pinnedParticipant() === participant.identity;
+
+  const [isFullscreen, setIsFullscreen] = createSignal(false);
+  let tileRef: HTMLDivElement | undefined;
+
+  const handleFullscreenStateChange = () => {
+    if (!tileRef) {
+      setIsFullscreen(false);
+      return;
+    }
+
+    setIsFullscreen(document.fullscreenElement === tileRef);
+  };
+
+  onMount(() => {
+    document.addEventListener("fullscreenchange", handleFullscreenStateChange);
+  });
+
+  onCleanup(() => {
+    document.removeEventListener(
+      "fullscreenchange",
+      handleFullscreenStateChange,
+    );
+  });
+
+  const handlePinClick = (event: MouseEvent) => {
+    event.stopPropagation();
+    props.onTogglePin(participant.identity);
+  };
+
+  const handleFullscreenClick = async (event: MouseEvent) => {
+    event.stopPropagation();
+    if (!tileRef) return;
+
+    try {
+      if (document.fullscreenElement === tileRef) {
+        await document.exitFullscreen();
+      } else {
+        await tileRef.requestFullscreen();
+      }
+    } catch (error) {
+      console.warn("Unable to toggle fullscreen", error);
+    }
+  };
+
   return (
-    <div class={tile() + " group"}>
+    <div
+      class={tile({ pinned: isPinned() }) + " group"}
+      ref={(node) => {
+        tileRef = node ?? undefined;
+      }}
+    >
       <VideoTrack
         style={{ "grid-area": "1/1" }}
         trackRef={track as TrackReference}
@@ -213,9 +300,33 @@ function ScreenshareTile() {
       <Overlay showOnHover>
         <OverlayInner>
           <OverflowingText>{user().username}</OverflowingText>
-          <Show when={isMuted()}>
-            <Symbol size={18}>no_sound</Symbol>
-          </Show>
+          <OverlayActions>
+            <Show when={isMuted()}>
+              <Symbol size={18}>no_sound</Symbol>
+            </Show>
+
+            <OverlayIconButton
+              type="button"
+              aria-label={isPinned() ? "ピン留めを解除" : "ピン留め"}
+              aria-pressed={isPinned()}
+              onClick={handlePinClick}
+              active={isPinned()}
+            >
+              <Symbol size={18}>push_pin</Symbol>
+            </OverlayIconButton>
+
+            <OverlayIconButton
+              type="button"
+              aria-label={isFullscreen() ? "全画面を終了" : "全画面表示"}
+              aria-pressed={isFullscreen()}
+              onClick={handleFullscreenClick}
+              active={isFullscreen()}
+            >
+              <Symbol size={18}>
+                {isFullscreen() ? "fullscreen_exit" : "fullscreen"}
+              </Symbol>
+            </OverlayIconButton>
+          </OverlayActions>
         </OverlayInner>
       </Overlay>
     </div>
@@ -242,6 +353,13 @@ const tile = cva({
     speaking: {
       true: {
         outlineColor: "var(--md-sys-color-primary)",
+      },
+    },
+    pinned: {
+      true: {
+        gridColumn: "1 / -1",
+        minHeight: "360px",
+        aspectRatio: "auto",
       },
     },
   },
@@ -292,6 +410,47 @@ const OverlayInner = styled("div", {
 
     _first: {
       flexGrow: 1,
+    },
+  },
+});
+
+const OverlayActions = styled("div", {
+  base: {
+    display: "flex",
+    alignItems: "center",
+    gap: "var(--gap-sm)",
+  },
+});
+
+const OverlayIconButton = styled("button", {
+  base: {
+    width: "32px",
+    height: "32px",
+    display: "grid",
+    placeItems: "center",
+    borderRadius: "999px",
+    border: "1px solid transparent",
+    background: "rgba(0, 0, 0, 0.55)",
+    color: "inherit",
+    cursor: "pointer",
+    padding: 0,
+    transition: "var(--transitions-fast) all",
+
+    _hover: {
+      background: "rgba(0, 0, 0, 0.75)",
+    },
+
+    _focusVisible: {
+      outline: "2px solid var(--md-sys-color-primary)",
+      outlineOffset: "2px",
+    },
+  },
+  variants: {
+    active: {
+      true: {
+        background: "var(--md-sys-color-primary)",
+        color: "var(--md-sys-color-on-primary)",
+      },
     },
   },
 });
