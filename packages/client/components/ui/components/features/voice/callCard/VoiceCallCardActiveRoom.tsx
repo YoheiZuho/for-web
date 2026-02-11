@@ -207,11 +207,12 @@ function UserTile() {
         }
       >
         <Match when={isTrackReference(track) && !isCameraMuted()}>
-          <VideoTrack
-            style={{ "grid-area": "1/1" }}
-            trackRef={track as TrackReference}
-            manageSubscription={true}
-          />
+          <CameraVideo>
+            <VideoTrack
+              trackRef={track as TrackReference}
+              manageSubscription={true}
+            />
+          </CameraVideo>
         </Match>
       </Switch>
 
@@ -306,11 +307,12 @@ function ScreenshareTile(props: ScreenshareTileProps) {
         tileRef = node ?? undefined;
       }}
     >
-      <VideoTrack
-        style={{ "grid-area": "1/1" }}
-        trackRef={track as TrackReference}
-        manageSubscription={true}
-      />
+      <ScreenshareVideo>
+        <VideoTrack
+          trackRef={track as TrackReference}
+          manageSubscription={true}
+        />
+      </ScreenshareVideo>
 
       <Overlay showOnHover>
         <OverlayInner>
@@ -364,12 +366,6 @@ const tile = cva({
     outlineOffset: "-3px",
     outlineColor: "transparent",
     order: 0,
-
-    "& video": {
-      width: "100%",
-      height: "100%",
-      objectFit: "cover",
-    },
   },
   variants: {
     speaking: {
@@ -477,6 +473,36 @@ const OverlayIconButton = styled("button", {
         background: "var(--md-sys-color-primary)",
         color: "var(--md-sys-color-on-primary)",
       },
+    },
+  },
+});
+
+const CameraVideo = styled("div", {
+  base: {
+    gridArea: "1/1",
+
+    "& video": {
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+    },
+  },
+});
+
+const ScreenshareVideo = styled("div", {
+  base: {
+    gridArea: "1/1",
+    display: "grid",
+    placeItems: "center",
+    background: "#000",
+
+    "& video": {
+      maxWidth: "100%",
+      maxHeight: "100%",
+      width: "100%",
+      height: "100%",
+      objectFit: "contain",
+      background: "transparent",
     },
   },
 });
