@@ -428,6 +428,12 @@ const tile = cva({
     outlineOffset: "-3px",
     outlineColor: "transparent",
     order: 0,
+
+    "& video": {
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+    },
   },
   variants: {
     speaking: {
