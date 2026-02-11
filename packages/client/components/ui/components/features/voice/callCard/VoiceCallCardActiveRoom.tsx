@@ -40,13 +40,66 @@ import { VoiceCallCardStatus } from "./VoiceCallCardStatus";
  * Call card (active)
  */
 export function VoiceCallCardActiveRoom() {
+  const MIN_CALL_HEIGHT = 280;
+  const MAX_CALL_HEIGHT = 960;
+
+  const [callHeight, setCallHeight] = createSignal(420);
+  const [isResizing, setIsResizing] = createSignal(false);
+
+  let resizeStartY = 0;
+  let resizeStartHeight = callHeight();
+
+  const clampHeight = (value: number) =>
+    Math.min(Math.max(value, MIN_CALL_HEIGHT), MAX_CALL_HEIGHT);
+
+  const handlePointerMove = (event: PointerEvent) => {
+    event.preventDefault();
+    const delta = event.clientY - resizeStartY;
+    setCallHeight(clampHeight(resizeStartHeight + delta));
+  };
+
+  const stopResizing = () => {
+    if (!isResizing()) return;
+    setIsResizing(false);
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", stopResizing);
+  };
+
+  const startResizing = (event: PointerEvent) => {
+    event.preventDefault();
+    resizeStartY = event.clientY;
+    resizeStartHeight = callHeight();
+    setIsResizing(true);
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResizing);
+  };
+
+  onCleanup(() => {
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", stopResizing);
+  });
+
   return (
     <View>
-      <Call>
-        <InRoom>
-          <Participants />
-        </InRoom>
+      <Call style={{ height: `${callHeight()}px` }}>
+        <CallScroll>
+          <InRoom>
+            <Participants />
+          </InRoom>
+        </CallScroll>
       </Call>
+
+      <ResizeHandle
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="通話エリアの高さを調整"
+        aria-valuemin={MIN_CALL_HEIGHT}
+        aria-valuemax={MAX_CALL_HEIGHT}
+        aria-valuenow={Math.round(callHeight())}
+        data-active={isResizing() ? "" : undefined}
+        onPointerDown={startResizing}
+      />
 
       <VoiceCallCardStatus />
       <VoiceCallCardActions size="sm" />
@@ -70,9 +123,20 @@ const View = styled("div", {
 
 const Call = styled("div", {
   base: {
-    flexGrow: 1,
+    width: "100%",
     minHeight: 0,
-    overflowY: "scroll",
+    borderRadius: "var(--borderRadius-xl)",
+    background: "var(--md-sys-color-surface-container-low)",
+    boxShadow: "inset 0 0 0 1px var(--md-sys-color-outline-variant)",
+    overflow: "hidden",
+    transition: "height var(--transitions-fast)",
+  },
+});
+
+const CallScroll = styled("div", {
+  base: {
+    height: "100%",
+    overflowY: "auto",
   },
 });
 
@@ -363,6 +427,7 @@ const tile = cva({
     outlineStyle: "solid",
     outlineOffset: "-3px",
     outlineColor: "transparent",
+    order: 0,
   },
   variants: {
     speaking: {
@@ -379,6 +444,7 @@ const tile = cva({
         alignSelf: "start",
         aspectRatio: "16/9",
         minHeight: "auto",
+        order: -1,
       },
     },
   },
@@ -469,6 +535,41 @@ const OverlayIconButton = styled("button", {
       true: {
         background: "var(--md-sys-color-primary)",
         color: "var(--md-sys-color-on-primary)",
+      },
+    },
+  },
+});
+
+const ResizeHandle = styled("div", {
+  base: {
+    width: "100%",
+    height: "16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "row-resize",
+    userSelect: "none",
+    touchAction: "none",
+    color: "var(--md-sys-color-outline)",
+
+    _before: {
+      content: "\"\"",
+      width: "64px",
+      height: "4px",
+      borderRadius: "999px",
+      background: "currentcolor",
+      opacity: 0.6,
+      transition: "opacity var(--transitions-fast)",
+    },
+
+    _hover: {
+      color: "var(--md-sys-color-primary)",
+    },
+
+    "&[data-active]": {
+      color: "var(--md-sys-color-primary)",
+      _before: {
+        opacity: 1,
       },
     },
   },
