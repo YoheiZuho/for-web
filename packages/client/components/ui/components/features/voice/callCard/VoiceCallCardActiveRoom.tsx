@@ -97,8 +97,10 @@ function Participants() {
     );
   };
 
+  const hasPinnedParticipant = () => pinnedParticipant() !== null;
+
   return (
-    <Grid>
+    <Grid pinned={hasPinnedParticipant()}>
       <TrackLoop tracks={tracks}>
         {() => (
           <ParticipantTile
@@ -122,6 +124,14 @@ const Grid = styled("div", {
     gap: "var(--gap-md)",
     padding: "var(--gap-md)",
     gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+    alignContent: "start",
+  },
+  variants: {
+    pinned: {
+      true: {
+        paddingBottom: "calc(var(--gap-xl) * 2)",
+      },
+    },
   },
 });
 
@@ -358,8 +368,12 @@ const tile = cva({
     pinned: {
       true: {
         gridColumn: "1 / -1",
-        minHeight: "360px",
-        aspectRatio: "auto",
+        width: "100%",
+        maxWidth: "720px",
+        justifySelf: "center",
+        alignSelf: "start",
+        aspectRatio: "16/9",
+        minHeight: "auto",
       },
     },
   },
