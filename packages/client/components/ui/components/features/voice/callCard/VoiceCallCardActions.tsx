@@ -61,7 +61,7 @@ export function VoiceCallCardActions(props: { size: "xs" | "sm" }) {
       </IconButton>
       <IconButton
         size={props.size}
-        variant={voice.screenshare?.() ? "filled" : "tonal"}
+        variant={voice.camera?.() ? "filled" : "tonal"}
         onPress={() => voice.toggleCamera?.()}
       >
         <Symbol>camera_video</Symbol>
