@@ -40,7 +40,7 @@ import { VoiceCallCardStatus } from "./VoiceCallCardStatus";
  * Call card (active)
  */
 export function VoiceCallCardActiveRoom() {
-  const MIN_CALL_HEIGHT = 280;
+  const MIN_CALL_HEIGHT = 360;
   const MAX_CALL_HEIGHT = 960;
 
   const [callHeight, setCallHeight] = createSignal(420);
@@ -82,27 +82,29 @@ export function VoiceCallCardActiveRoom() {
 
   return (
     <View>
-      <Call style={{ height: `${callHeight()}px` }}>
-        <CallScroll>
-          <InRoom>
-            <Participants />
-          </InRoom>
-        </CallScroll>
-      </Call>
+      <CallSection style={{ height: `${callHeight()}px` }}>
+        <Call>
+          <CallScroll>
+            <InRoom>
+              <Participants />
+            </InRoom>
+          </CallScroll>
+        </Call>
 
-      <ResizeHandle
-        role="separator"
-        aria-orientation="horizontal"
-        aria-label="通話エリアの高さを調整"
-        aria-valuemin={MIN_CALL_HEIGHT}
-        aria-valuemax={MAX_CALL_HEIGHT}
-        aria-valuenow={Math.round(callHeight())}
-        data-active={isResizing() ? "" : undefined}
-        onPointerDown={startResizing}
-      />
+        <VoiceCallCardStatus />
+        <VoiceCallCardActions size="sm" />
 
-      <VoiceCallCardStatus />
-      <VoiceCallCardActions size="sm" />
+        <ResizeHandle
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="通話エリアの高さを調整"
+          aria-valuemin={MIN_CALL_HEIGHT}
+          aria-valuemax={MAX_CALL_HEIGHT}
+          aria-valuenow={Math.round(callHeight())}
+          data-active={isResizing() ? "" : undefined}
+          onPointerDown={startResizing}
+        />
+      </CallSection>
     </View>
   );
 }
@@ -121,15 +123,25 @@ const View = styled("div", {
   },
 });
 
+const CallSection = styled("section", {
+  base: {
+    width: "100%",
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "var(--gap-md)",
+  },
+});
+
 const Call = styled("div", {
   base: {
     width: "100%",
     minHeight: 0,
+    flexGrow: 1,
     borderRadius: "var(--borderRadius-xl)",
     background: "var(--md-sys-color-surface-container-low)",
     boxShadow: "inset 0 0 0 1px var(--md-sys-color-outline-variant)",
     overflow: "hidden",
-    transition: "height var(--transitions-fast)",
   },
 });
 
